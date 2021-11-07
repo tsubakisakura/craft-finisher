@@ -3,6 +3,7 @@ mod logic;
 mod statespace;
 
 use indicatif::ProgressIterator;
+use rayon::prelude::*;
 use core::ops::{Index,IndexMut};
 
 use logic::{State,Buff,Action,Setting};
@@ -81,17 +82,20 @@ fn calc_table( setting:&Setting ) -> (Table<u32>,Table<Action>) {
 
         // 計算領域を計算済み領域(v1とa1)と未計算領域(v2とa2)に分割します。
         // 計算済み領域はcp=0で始まる領域で、未計算領域は現イテレーションのcpで始まる領域です。
-        let (v1,vt) = v_buffer.split_at_mut( space.size_cp() * cp as usize );
-        let ( _,at) = a_buffer.split_at_mut( space.size_cp() * cp as usize );
-        let v2 = &mut vt[0..space.size_cp()];
-        let a2 = &mut at[0..space.size_cp()];
+        // 更に現在の現イテレーションの領域に限定したスライスをvc、ac、と定義します。
+        let (v1,v2) = v_buffer.split_at_mut( space.size_cp() * cp as usize );
+        let ( _,a2) = a_buffer.split_at_mut( space.size_cp() * cp as usize );
+        let vc = &mut v2[0..space.size_cp()];
+        let ac = &mut a2[0..space.size_cp()];
 
-        // 本イテレーションの全状態について計算します。
-        v2.iter_mut().zip(a2.iter_mut()).enumerate().for_each(|(index,(pv,pa))| {
-            let s = space.get_state_by_cp_index( cp, index );
-            let (a,v) = calc_value( &setting, &v1, &space, &s );
-            *pv = v;
-            *pa = a;
+        // 現イテレーションの全状態について計算します。
+        vc.par_iter_mut().zip(ac.par_iter_mut()).enumerate().chunks(1024).for_each(|slice| {
+            for (index,(pv,pa)) in slice {
+                let s = space.get_state_by_cp_index( cp, index );
+                let (a,v) = calc_value( &setting, &v1, &space, &s );
+                *pv = v;
+                *pa = a;
+            }
         });
     }
 
