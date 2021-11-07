@@ -133,4 +133,14 @@ impl StateSpace {
             }
         }
     }
+
+    pub fn get_state_by_cp_index(&self, cp:u16, index:usize) -> State {
+        assert!( index < self.size_cp() );
+
+        State {
+            cp:cp,
+            durability: (index / self.buffs.len()) as u8 * 5 + 5,
+            buff: self.buffs[index % self.buffs.len()],
+        }
+    }
 }

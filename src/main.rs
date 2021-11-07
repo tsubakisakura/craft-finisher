@@ -15,15 +15,6 @@ struct Table<T>
     space : StateSpace,
 }
 
-impl<T: Clone> Table<T> {
-    fn new( space:&StateSpace, init_value:T ) -> Table<T> {
-        let mut values = Vec::new();
-        values.resize( space.size(), init_value );
-
-        Table { values: values, space: space.clone() }
-    }
-}
-
 impl<T: Clone> Index<State> for Table<T> {
     type Output = T;
 
@@ -38,7 +29,7 @@ impl<T: Clone> IndexMut<State> for Table<T> {
     }
 }
 
-fn calc_value( setting:&Setting, table:&Table<u32>, s:&State ) -> (Action,u32) {
+fn calc_value( setting:&Setting, values:&[u32], space:&StateSpace, s:&State ) -> (Action,u32) {
     let mut max_a = Action::CannotAction;
     let mut max_v = 0;
 
@@ -61,8 +52,8 @@ fn calc_value( setting:&Setting, table:&Table<u32>, s:&State ) -> (Action,u32) {
     for a in CANDIDATE_ACTIONS {
         if s.check_action(&a) {
             let (ns,q) = s.run_action( setting, &a );
-            if let Some(index) = table.space.get_index(&ns) {
-                let v = q + table.values[index];
+            if let Some(index) = space.get_index(&ns) {
+                let v = q + values[index];
                 if v > max_v {
                     max_a = a;
                     max_v = v;
@@ -77,25 +68,33 @@ fn calc_value( setting:&Setting, table:&Table<u32>, s:&State ) -> (Action,u32) {
 fn calc_table( setting:&Setting ) -> (Table<u32>,Table<Action>) {
 
     let space = StateSpace::new(setting.max_durability, setting.max_cp, setting.sustain);
-    let mut table_v = Table::new( &space, 0 );
-    let mut table_a = Table::new( &space, Action::CannotAction );
 
-    // アクションは「何もしない場合」を除いて全てCPを消費するアクションですから、CP順に処理していく必要があります。
-    // 「何もしない場合」とは、CP的に実行可能なアクションを実行すると耐久0になる場合しか選択肢がない場合で、この時は報酬は常に0です。
+    // 元になる配列を作成します
+    let mut v_buffer = Vec::new();
+    let mut a_buffer = Vec::new();
+    v_buffer.resize( space.size(), 0 );
+    a_buffer.resize( space.size(), Action::CannotAction );
+
+    // CannotActionを除いて全てCPを消費するアクションですから、CP順に処理すれば参照先が未計算ということはないです。
+    // CannotActionの場合はどこを参照することもなく単に評価値が0になります。
     for cp in (0..=setting.max_cp).progress() {
-        for durability in (5..=setting.max_durability).step_by(5) {
-            for buff_index in 0..space.buffs.len() {
-                let s = State { cp: cp, durability: durability, buff: space.buffs[buff_index] };
-                let index = space.get_index(&s).unwrap();
 
-                let (a,v) = calc_value( &setting, &table_v, &s );
-                table_v.values[index] = v;
-                table_a.values[index] = a;
-            }
+        // 計算領域を計算済み領域(v1とa1)と未計算領域(v2とa2)に分割します。
+        // 計算済み領域はcp=0で始まる領域で、未計算領域は現イテレーションのcpで始まる領域です。
+        let (v1,v2) = v_buffer.split_at_mut( space.size_cp() * cp as usize );
+        let ( _,a2) = a_buffer.split_at_mut( space.size_cp() * cp as usize );
+
+        // 本イテレーションの全状態について計算します。
+        for index in 0..space.size_cp() {
+            let s = space.get_state_by_cp_index( cp, index );
+            let (a,v) = calc_value( &setting, &v1, &space, &s );
+            v2[index] = v;
+            a2[index] = a;
         }
     }
 
-    (table_v,table_a)
+    (Table { values:v_buffer, space:space.clone() },
+     Table { values:a_buffer, space:space.clone() } )
 }
 
 fn print_series( setting:&Setting, ta:&Table<Action>, initial_state:&State ) {
