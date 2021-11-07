@@ -70,7 +70,6 @@ fn calc_table( setting:&Setting ) -> (Table<u32>,Table<Action>) {
 
     let space = StateSpace::new(setting.max_durability, setting.max_cp, setting.sustain);
 
-    // 元になる配列を作成します
     let mut v_buffer = Vec::new();
     let mut a_buffer = Vec::new();
     v_buffer.resize( space.size(), 0 );
