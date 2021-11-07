@@ -18,9 +18,9 @@ fn travarse_states( states:&mut HashSet<Buff>, s:Buff, sustain:bool ) {
         travarse_states( states, Buff{ great_strides:3, ..ns }, sustain );
         travarse_states( states, Buff{ waste_not:4, ..ns }, sustain );
         travarse_states( states, Buff{ waste_not:8, ..ns }, sustain );
-        travarse_states( states, Buff{ basic_touch:1, ..ns }, sustain );
         travarse_states( states, Buff{ observe:1, ..ns }, sustain );
-        travarse_states( states, Buff{ inner_quiet:0, ..ns }, sustain );
+        travarse_states( states, Buff{ basic_touch:1, great_strides:0, ..ns }, sustain ); // 加工したときの状態です。グレストも同時に消えます
+        travarse_states( states, Buff{ inner_quiet:0, great_strides:0, ..ns }, sustain ); // ビエルゴした時の状態です。グレストも同時に消えます
 
         if sustain {
             travarse_states( states, Buff{ manipulation:10, ..ns }, sustain );
