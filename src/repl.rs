@@ -9,65 +9,50 @@ enum CmdLine {
     Help,
     Exit,
     Empty,
-    Other,
     Eval(State),
 }
 
-fn parse_eval_state( v:&Vec<&str> ) -> Option<State> {
+fn parse_eval( v:&[&str] ) -> Result<CmdLine,&'static str> {
 
     if v.len() < 2 {
-        None
+        Err("not enough arguments")
     }
     else {
         let cp = match v[0].parse::<u16>() {
-            Err(_) => return None,
+            Err(_) => return Err("cannot parse CP"),
             Ok(x) => x,
         };
 
         let durability = match v[1].parse::<u8>() {
-            Err(_) => return None,
+            Err(_) => return Err("cannot parse durability"),
             Ok(x) => x,
         };
 
-        Some( State { cp:cp, durability:durability, buff: Buff { inner_quiet:11, manipulation:0, innovation:0, great_strides:0, waste_not:0, basic_touch:0, observe:0 }} )
+        Ok( CmdLine::Eval( State { cp:cp, durability:durability, buff: Buff { inner_quiet:11, manipulation:0, innovation:0, great_strides:0, waste_not:0, basic_touch:0, observe:0 }} ) )
     }
 }
 
-fn parse_help( v:&Vec<&str> ) -> bool {
-    if v.len() < 1 {
-        false
-    }
-    else {
-        v[0] == "h" || v[0] == "help"
-    }
+fn is_all_numeric(s:&str) -> bool {
+    s.chars().all(|c| c.is_ascii_digit())
 }
 
-fn parse_exit( v:&Vec<&str> ) -> bool {
-    if v.len() < 1 {
-        false
-    }
-    else {
-        v[0] == "exit" || v[0] == "quit"
-    }
-}
-
-fn parse_cmdline( line:&str ) -> CmdLine {
+fn parse_cmdline( line:&str ) -> Result<CmdLine,&'static str> {
     let v: Vec<&str> = line.split_whitespace().collect();
 
-    if let Some(s) = parse_eval_state(&v) {
-        CmdLine::Eval(s)
-    }
-    else if parse_exit(&v) {
-        CmdLine::Exit
-    }
-    else if parse_help(&v) {
-        CmdLine::Help
-    }
-    else if v.len() == 0 {
-        CmdLine::Empty
+    if v.len() > 0 {
+        match v[0] {
+            x if is_all_numeric(x) => parse_eval(&v[0..]),
+            "eval" => parse_eval(&v[1..]),
+            "?" => Ok(CmdLine::Help),
+            "h" => Ok(CmdLine::Help),
+            "help" => Ok(CmdLine::Help),
+            "quit" => Ok(CmdLine::Exit),
+            "exit" => Ok(CmdLine::Exit),
+            _ => Err("Wrong command (h for help)"),
+        }
     }
     else {
-        CmdLine::Other
+        Ok(CmdLine::Empty)
     }
 }
 
@@ -87,13 +72,10 @@ fn print_series( setting:&Setting, ta:&Table<Action>, initial_state:&State ) {
 
 fn print_help() {
     println!("Usage:");
-    println!("  [CP] [durability]    print series for input setting");
-    println!("  h, help              print help" );
-    println!("  exit, quit           exit command" );
-}
-
-fn print_error() {
-    println!("Wrong command(h for help)");
+    println!("  [CP] [durability]       print tactics");
+    println!("  eval [CP] [durability]  print tactics(same as above)");
+    println!("  ?, h, help              print help" );
+    println!("  exit, quit              exit command" );
 }
 
 fn eval_line( setting:&Setting, ta:&Table<Action>, line:&str ) -> bool {
@@ -101,11 +83,15 @@ fn eval_line( setting:&Setting, ta:&Table<Action>, line:&str ) -> bool {
     let cmdline = parse_cmdline( &line );
 
     match cmdline {
-        CmdLine::Eval(s) => print_series(setting,ta,&s),
-        CmdLine::Help => print_help(),
-        CmdLine::Other => print_error(),
-        CmdLine::Empty => return true,
-        CmdLine::Exit => return false,
+        Ok(cmd) => match cmd {
+            CmdLine::Eval(s) => print_series(setting,ta,&s),
+            CmdLine::Help => print_help(),
+            CmdLine::Empty => {},
+            CmdLine::Exit => return false,
+        },
+        Err(x) => {
+            println!("{}",x)
+        },
     }
 
     return true
