@@ -129,6 +129,8 @@ fn print_series( ctx:&ReplContext, setting:&Setting, ta:&Table<Action>, initial_
     if !ctx.verbose {
         println!("(+{})", sum_q);
     }
+
+    println!("");
 }
 
 fn print_help() {
