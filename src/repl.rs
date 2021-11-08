@@ -23,10 +23,13 @@ fn parse_eval( v:&[&str] ) -> Result<CmdLine,&'static str> {
             Ok(x) => x,
         };
 
-        let durability = match v[1].parse::<u8>() {
+        let d = match v[1].parse::<u8>() {
             Err(_) => return Err("cannot parse durability"),
             Ok(x) => x,
         };
+
+        // 耐久は5の倍数切り上げします。
+        let durability = ((d+4) / 5 * 5) as u8;
 
         Ok( CmdLine::Eval( State { cp:cp, durability:durability, buff: Buff { inner_quiet:11, manipulation:0, innovation:0, great_strides:0, waste_not:0, basic_touch:0, observe:0 }} ) )
     }
@@ -58,6 +61,11 @@ fn parse_cmdline( line:&str ) -> Result<CmdLine,&'static str> {
 
 fn print_series( setting:&Setting, ta:&Table<Action>, initial_state:&State ) {
 
+    if !ta.contains(initial_state) {
+        println!("Out of bound(0<=cp<={} && 5<=durability<={} && durability%5==0)", setting.max_cp, setting.max_durability );
+        return;
+    }
+
     let mut s = *initial_state;
     let mut sum_q = 0;
 
@@ -68,6 +76,7 @@ fn print_series( setting:&Setting, ta:&Table<Action>, initial_state:&State ) {
         println!("{:?} {:?} -> {}(+{})",s,ta[s],sum_q,q);
         s = ns;
     }
+    println!("{:?}", s);
 }
 
 fn print_help() {

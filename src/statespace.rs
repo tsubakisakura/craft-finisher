@@ -134,6 +134,13 @@ impl StateSpace {
         }
     }
 
+    pub fn contains(&self, s:&State) -> bool {
+        match self.get_index(s) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     pub fn get_state_by_cp_index(&self, cp:u16, index:usize) -> State {
         assert!( index < self.size_cp() );
 

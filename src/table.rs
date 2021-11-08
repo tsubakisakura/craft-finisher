@@ -27,6 +27,12 @@ impl<T: Clone> IndexMut<State> for Table<T> {
     }
 }
 
+impl<T> Table<T> {
+    pub fn contains(&self, s:&State) -> bool {
+        self.space.contains(s)
+    }
+}
+
 fn calc_value( setting:&Setting, values:&[u32], space:&StateSpace, s:&State ) -> (Action,u32) {
     let mut max_a = Action::CannotAction;
     let mut max_v = 0;
